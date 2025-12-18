@@ -1,0 +1,14 @@
+[Unit]
+Description=Raspberry Pi Hardware Appliance
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/rpi-hardware-appliance
+ExecStart=/usr/bin/python3 /home/pi/rpi-hardware-appliance/run.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
