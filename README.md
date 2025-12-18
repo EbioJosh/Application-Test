@@ -1,6 +1,6 @@
 # Raspberry Pi Hardware Appliance
 
-A Flask-based embedded system for RFID authentication with thermal printing capabilities.
+A Flask-based embedded system for RFID authentication with thermal printing capabilities and web interface.
 
 ## Features
 - RFID authentication with PIN validation
@@ -8,7 +8,10 @@ A Flask-based embedded system for RFID authentication with thermal printing capa
 - Thermal printer receipt generation
 - Real-time status updates via WebSockets
 - Local SQLite storage for credentials and logs
-- React frontend served by Flask
+- React web application served by Flask
+- Account information display
+- Transaction simulation
+- Receipt generation
 
 ## Test Environment
 
@@ -31,6 +34,7 @@ For testing without actual hardware, we provide a simplified version that simula
 - spidev + MFRC522 library for RFID
 - python-escpos for USB printing
 - SQLite for local storage
+- React for web frontend
 - systemd for auto-start
 
 ## Architecture
@@ -39,7 +43,7 @@ The system follows a strict architecture where Flask is the only component allow
 
 1. Flask controls GPIO, SPI, and USB
 2. Handles RFID reads, keypad scanning, authentication logic, and printer output
-3. React (web frontend) has no direct hardware access
+3. React web frontend has no direct hardware access
 4. React communicates with Flask via HTTP (REST) and WebSockets
 5. Flask and React run on the same Raspberry Pi
 6. React is built into static files and served by Flask
@@ -89,6 +93,58 @@ If you encounter an "externally managed environment" error:
 1. Always use a virtual environment as shown above
 2. Alternatively, use `pip install --break-system-packages` (not recommended)
 
+## Web Application
+
+The React web application provides a user interface for:
+- Card authentication
+- PIN entry
+- Account information display
+- Transaction processing
+- Receipt generation
+
+### Building the Web Application
+
+1. Navigate to the frontend directory:
+   ```bash
+   cd frontend
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Build the application:
+   ```bash
+   npm run build
+   ```
+
+4. Copy build files to Flask static directory:
+   ```bash
+   # On Unix/Linux/Mac
+   cp -r build/* ../app/static/
+   
+   # On Windows
+   xcopy /E /I build\* ..\app\static\
+   ```
+
+### Development Mode
+
+To run the web application in development mode:
+
+1. Start the Flask backend:
+   ```bash
+   python run.py
+   ```
+
+2. In another terminal, start the React development server:
+   ```bash
+   cd frontend
+   npm start
+   ```
+
+The web application will be available at http://localhost:3000 and will proxy API requests to the Flask backend at http://localhost:5000.
+
 ## Usage
 
 1. Activate the virtual environment:
@@ -126,3 +182,13 @@ Key WebSocket events:
 - `auth_result`: When authentication completes
 
 The frontend is built into static files and served by Flask from the `/static` directory.
+
+## API Endpoints
+
+- `GET /` - Serve React frontend
+- `GET /api/status` - System status
+- `POST /api/users` - Add new user
+- `GET /api/logs` - Authentication logs
+- `GET /api/account/<account_id>` - Get account information
+- `POST /api/transaction` - Process transaction
+- WebSocket events for real-time updates

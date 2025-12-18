@@ -55,6 +55,15 @@ This project implements a Raspberry Pi-based embedded system for RFID authentica
 ### API Layer
 - `app/api/routes.py` - REST API endpoints
 
+### Web Application (Frontend)
+- `frontend/App.js` - Main React application component
+- `frontend/App.css` - Application styling
+- `frontend/index.js` - React entry point
+- `frontend/index.css` - Base styling
+- `frontend/public/index.html` - HTML template
+- `frontend/package.json` - Frontend dependencies and scripts
+- `frontend/README.md` - Web application documentation
+
 ### Deployment
 - `rpi-hardware-appliance.service` - systemd service file
 - `requirements.txt` - Production dependencies
@@ -64,6 +73,8 @@ This project implements a Raspberry Pi-based embedded system for RFID authentica
 - `README.md` - Project overview and usage instructions
 - `TECHNICAL_DOCS.md` - Detailed technical documentation
 - `demonstrate.py` - System demonstration script
+- `WEB_APP_GUIDE.md` - Web application guide
+- `WEB_APP_IMPLEMENTATION_SUMMARY.md` - Web application implementation details
 
 ### Setup Scripts
 - `setup.sh` - Unix development setup
@@ -72,6 +83,10 @@ This project implements a Raspberry Pi-based embedded system for RFID authentica
 - `setup-pi4b-test.sh` - Raspberry Pi 4B test environment setup
 - `prepare-pi.bat` - Package preparation for Pi deployment
 - `prepare-pi4b-test.bat` - Package preparation for Pi 4B test environment
+- `frontend/setup.sh` - Frontend setup script
+- `frontend/setup.bat` - Frontend setup script (Windows)
+- `frontend/build.sh` - Frontend build script
+- `frontend/build.bat` - Frontend build script (Windows)
 - `test_system.py` - System testing script
 
 ## Architecture Compliance

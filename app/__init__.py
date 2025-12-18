@@ -3,7 +3,7 @@ Main application entry point for the Raspberry Pi hardware appliance.
 """
 import os
 import sys
-from flask import Flask
+from flask import Flask, send_from_directory
 from flask_socketio import SocketIO
 
 # Add the current directory to Python path
@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 def create_app():
     """Create and configure the Flask application."""
-    app = Flask(__name__, static_folder='static')
+    app = Flask(__name__, static_folder='static', static_url_path='/static')
     app.config['SECRET_KEY'] = 'your-secret-key-change-in-production'
     
     # Initialize SocketIO
@@ -20,6 +20,13 @@ def create_app():
     # Register blueprints
     from app.api.routes import api_bp
     app.register_blueprint(api_bp)
+    
+    # Serve React frontend
+    @app.route('/')
+    def index():
+        """Serve the React frontend."""
+        static_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
+        return send_from_directory(static_folder, 'index.html')
     
     # Set up SocketIO event handlers
     @socketio.on('connect')

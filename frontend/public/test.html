@@ -1,0 +1,47 @@
+// Create a simple HTML file to test the frontend structure
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Page</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .section { margin: 20px 0; padding: 20px; border: 1px solid #ccc; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Raspberry Pi Banking Terminal - Frontend Test</h1>
+        
+        <div class="section">
+            <h2>Frontend Structure</h2>
+            <p>This directory contains the React frontend for the Raspberry Pi banking terminal.</p>
+            <ul>
+                <li><code>App.js</code> - Main application component</li>
+                <li><code>App.css</code> - Styling for the application</li>
+                <li><code>index.js</code> - Entry point</li>
+                <li><code>package.json</code> - Dependencies and scripts</li>
+            </ul>
+        </div>
+        
+        <div class="section">
+            <h2>To Build and Run</h2>
+            <ol>
+                <li>Navigate to this directory in your terminal</li>
+                <li>Run <code>npm install</code> to install dependencies</li>
+                <li>Run <code>npm start</code> to start the development server</li>
+                <li>Run <code>npm run build</code> to create a production build</li>
+            </ol>
+        </div>
+        
+        <div class="section">
+            <h2>Integration with Backend</h2>
+            <p>The frontend communicates with the Flask backend through:</p>
+            <ul>
+                <li>REST API endpoints for data operations</li>
+                <li>WebSocket connections for real-time hardware events</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
