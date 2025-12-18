@@ -140,7 +140,7 @@ After=network.target
 Type=simple
 User=pi
 WorkingDirectory=/home/pi/rpi-hardware-appliance
-ExecStart=/usr/bin/python3 /home/pi/rpi-hardware-appliance/run.py
+ExecStart=/home/pi/rpi-hardware-appliance/rpi-venv/bin/python run.py
 Restart=always
 RestartSec=10
 
@@ -152,10 +152,25 @@ WantedBy=multi-user.target
 
 1. Install Raspberry Pi OS Lite (64-bit)
 2. Enable SPI interface via `raspi-config`
-3. Install Python dependencies
-4. Connect hardware components
-5. Install and enable systemd service
-6. Add users via REST API
+3. Create virtual environment to avoid "externally managed environment" error
+4. Install Python dependencies in virtual environment
+5. Connect hardware components
+6. Install and enable systemd service
+7. Add users via REST API
+
+### Handling Externally Managed Environment Errors
+
+Modern Linux distributions (including recent Raspberry Pi OS) use the "externally managed environment" protection to prevent accidental system package corruption. To avoid this issue:
+
+1. Always use virtual environments for Python projects
+2. The provided setup scripts automatically create and use virtual environments
+3. If manually installing, create a virtual environment first:
+   ```bash
+   python3 -m venv rpi-venv
+   source rpi-venv/bin/activate
+   pip install -r requirements.txt
+   ```
+4. For systemd service, ensure the ExecStart path points to the virtual environment Python
 
 ## Testing
 
@@ -164,6 +179,12 @@ The system includes comprehensive tests:
 - Hardware module imports
 - API endpoint creation
 - Authentication flow simulation
+
+Tests can be run with the virtual environment activated:
+```bash
+source rpi-venv/bin/activate
+python test_system.py
+```
 
 ## Extensibility
 

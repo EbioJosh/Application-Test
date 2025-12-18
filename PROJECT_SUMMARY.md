@@ -68,6 +68,10 @@ This project implements a Raspberry Pi-based embedded system for RFID authentica
 ### Setup Scripts
 - `setup.sh` - Unix development setup
 - `setup.bat` - Windows development setup
+- `setup-pi.sh` - Raspberry Pi deployment setup
+- `setup-pi4b-test.sh` - Raspberry Pi 4B test environment setup
+- `prepare-pi.bat` - Package preparation for Pi deployment
+- `prepare-pi4b-test.bat` - Package preparation for Pi 4B test environment
 - `test_system.py` - System testing script
 
 ## Architecture Compliance
@@ -102,6 +106,7 @@ The project includes cross-platform development setup:
 - Separate requirements for production vs development
 - Comprehensive testing scripts
 - Detailed documentation
+- Deployment guide for Raspberry Pi
 
 ## Future Enhancements
 

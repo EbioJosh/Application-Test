@@ -10,6 +10,10 @@ A Flask-based embedded system for RFID authentication with thermal printing capa
 - Local SQLite storage for credentials and logs
 - React frontend served by Flask
 
+## Test Environment
+
+For testing without actual hardware, we provide a simplified version that simulates all hardware components. See [TEST_ENVIRONMENT_README.md](TEST_ENVIRONMENT_README.md) for details.
+
 ## Hardware Components
 
 - Raspberry Pi (running Raspberry Pi OS Lite 64-bit)
@@ -44,20 +48,26 @@ The system follows a strict architecture where Flask is the only component allow
 
 ### For Raspberry Pi Deployment:
 
-1. Install dependencies:
+1. Create and activate a virtual environment (to avoid "externally managed environment" error):
+   ```bash
+   python3 -m venv rpi-venv
+   source rpi-venv/bin/activate
+   ```
+
+2. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
 
-2. Enable SPI interface on Raspberry Pi:
+3. Enable SPI interface on Raspberry Pi:
    ```bash
    sudo raspi-config
    # Interfacing Options -> SPI -> Yes
    ```
 
-3. Connect hardware components according to the pin configuration in `app/config.py`
+4. Connect hardware components according to the pin configuration in `app/config.py`
 
-4. Install systemd service:
+5. Install systemd service:
    ```bash
    sudo cp rpi-hardware-appliance.service /etc/systemd/system/
    sudo systemctl enable rpi-hardware-appliance
@@ -73,20 +83,31 @@ The system follows a strict architecture where Flask is the only component allow
 
 Note: Raspberry Pi specific libraries (RPi.GPIO, spidev, mfrc522) are only available on Raspberry Pi OS.
 
+### Troubleshooting
+
+If you encounter an "externally managed environment" error:
+1. Always use a virtual environment as shown above
+2. Alternatively, use `pip install --break-system-packages` (not recommended)
+
 ## Usage
 
-1. Add users via the REST API:
+1. Activate the virtual environment:
+   ```bash
+   source rpi-venv/bin/activate
+   ```
+
+2. Add users via the REST API:
    ```bash
    curl -X POST http://localhost:5000/api/users \
         -H "Content-Type: application/json" \
         -d '{"rfid_uid": "123456789", "pin": "1234"}'
    ```
 
-2. The system will automatically detect RFID cards and prompt for PIN entry via the keypad
+3. The system will automatically detect RFID cards and prompt for PIN entry via the keypad
 
-3. Authentication results are printed on the thermal printer
+4. Authentication results are printed on the thermal printer
 
-4. View logs via the REST API:
+5. View logs via the REST API:
    ```bash
    curl http://localhost:5000/api/logs
    ```
