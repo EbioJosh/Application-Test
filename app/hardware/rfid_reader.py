@@ -4,31 +4,43 @@ RFID Reader module for the Raspberry Pi hardware appliance.
 import threading
 import time
 import queue
-
-# Note: These imports will only work on Raspberry Pi
-# from mfrc522 import SimpleMFRC522
-# import spidev
+import RPi.GPIO as GPIO
+from mfrc522 import SimpleMFRC522
+from config import Config
 
 class RFIDReader:
     def __init__(self, socketio):
         """
-        Initialize the RFID reader.
-        
-        Args:
-            socketio: Flask-SocketIO instance for emitting events
+        Initialize the RFID reader using BCM mode to match the keypad.
         """
         self.socketio = socketio
-        # In a real implementation, you would initialize the RFID reader here
-        # self.reader = SimpleMFRC522()
-        self.running = False
+        
+        # 1. Force BCM mode BEFORE initializing the reader
+        # This prevents the "Channel invalid" error when mixing with Keypad
+        current_mode = GPIO.getmode()
+        if current_mode != GPIO.BCM:
+            GPIO.setmode(GPIO.BCM)
+        
+        GPIO.setwarnings(False)
+        
+        # 2. Initialize the reader
+        # Note: SimpleMFRC522 uses default SPI pins, but we ensure mode consistency
+        try:
+            self.reader = SimpleMFRC522()
+        except Exception as e:
+            print(f"Hardware Error: Could not initialize MFRC522. {e}")
+            self.reader = None
+
+        self.running = False 
         self.thread = None
         
     def start(self):
         """Start the RFID reading thread."""
-        if not self.running:
+        if not self.running and self.reader:
             self.running = True
             self.thread = threading.Thread(target=self._read_rfid_loop, daemon=True)
             self.thread.start()
+            print("RFID Reader thread started.")
             
     def stop(self):
         """Stop the RFID reading thread."""
@@ -40,18 +52,15 @@ class RFIDReader:
         """Background thread function to continuously read RFID cards."""
         while self.running:
             try:
-                # In a real implementation:
-                # id, text = self.reader.read_no_block()
-                # if id:
-                #     self._handle_rfid_read(str(id))
+                # read_no_block returns (None, None) if no card is present
+                id, text = self.reader.read_no_block()
                 
-                # Simulate RFID reading for development
-                time.sleep(2)  # Simulate delay in reading
+                if id:
+                    self._handle_rfid_read(str(id))
+                    # Prevent multiple reads of the same card in a split second
+                    time.sleep(2)
                 
-                # For demonstration purposes, emit a simulated RFID read event
-                # In a real implementation, this would only happen when an actual card is read
-                if self.running:
-                    self._handle_rfid_read("123456789")
+                time.sleep(0.1) # Short sleep to prevent CPU spiking
                     
             except Exception as e:
                 print(f"Error reading RFID: {e}")
@@ -66,25 +75,6 @@ class RFIDReader:
         
         # Notify the system that we need a PIN
         self.socketio.emit('request_pin', {'rfid_uid': rfid_uid})
-        
-        # Log the event (in a real implementation)
-        # from app.models.database import db
-        # db.log_event(rfid_uid, False, "RFID card detected")
 
-# Example usage:
-# if __name__ == "__main__":
-#     # This is just for testing the module independently
-#     import eventlet
-#     from flask import Flask
-#     from flask_socketio import SocketIO
-#     
-#     app = Flask(__name__)
-#     socketio = SocketIO(app, cors_allowed_origins="*")
-#     
-#     rfid_reader = RFIDReader(socketio)
-#     rfid_reader.start()
-#     
-#     try:
-#         socketio.run(app, host='0.0.0.0', port=5000, debug=False, use_reloader=False)
-#     except KeyboardInterrupt:
-#         rfid_reader.stop()
+        # Database logging should be handled via a callback or event to keep this clean
+        # but for now, we follow your provided logic.

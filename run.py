@@ -1,14 +1,51 @@
-"""
-Main entry point for the Raspberry Pi hardware appliance.
-"""
 import sys
 import os
+import signal
 
-# Add the app directory to the Python path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'app'))
 
 from app import create_app
+from app.hardware.rfid_reader import RFIDReader
+from app.hardware.keypad import Keypad
+from app.hardware.coordinator import get_coordinator
+from app.models.database import db
 
-if __name__ == '__main__':
+def main():
+    print("Starting Raspberry Pi Banking Appliance")
+
+    # Create Flask app + SocketIO
     app, socketio = create_app()
+
+    # Initialize DB
+    db.init_db()
+    db.add_user("769714493968", "1234")
+
+    # Coordinator controls authentication & emits events
+    coordinator = get_coordinator(socketio)
+
+    # Initialize hardware with the coordinator
+    rfid_reader = RFIDReader(socketio)  # Must pass coordinator so it can call handle_rfid_detected
+    keypad = Keypad(coordinator)           # Coordinator handles key presses & emits to frontend
+
+    # Coordinator knows about hardware
+    coordinator.set_hardware_components(rfid_reader, keypad)
+
+    # Start hardware threads
+    rfid_reader.start()
+    keypad.start()
+
+    # Graceful shutdown
+    def shutdown(sig, frame):
+        print("Shutting down...")
+        rfid_reader.stop()
+        keypad.stop()
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, shutdown)
+    signal.signal(signal.SIGTERM, shutdown)
+
+    print("System running on port 5000")
     socketio.run(app, host='0.0.0.0', port=5000, debug=False, use_reloader=False)
+
+if __name__ == "__main__":
+    main()

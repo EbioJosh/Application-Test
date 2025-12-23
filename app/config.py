@@ -17,13 +17,13 @@ class Config:
     PRINTER_ENABLED = os.environ.get('PRINTER_ENABLED', 'true').lower() == 'true'
     
     # GPIO pins (for Raspberry Pi)
-    # These would be configured based on your specific hardware setup
-    RFID_SDA_PIN = int(os.environ.get('RFID_SDA_PIN', 0))
-    RFID_SCK_PIN = int(os.environ.get('RFID_SCK_PIN', 0))
-    RFID_MOSI_PIN = int(os.environ.get('RFID_MOSI_PIN', 0))
-    RFID_MISO_PIN = int(os.environ.get('RFID_MISO_PIN', 0))
-    RFID_RST_PIN = int(os.environ.get('RFID_RST_PIN', 0))
+    RFID_SDA_PIN = int(os.environ.get('RFID_SDA_PIN', 8))
+    RFID_SCK_PIN = int(os.environ.get('RFID_SCK_PIN', 11))
+    RFID_MOSI_PIN = int(os.environ.get('RFID_MOSI_PIN', 10))
+    RFID_MISO_PIN = int(os.environ.get('RFID_MISO_PIN', 9))
+    RFID_RST_PIN = int(os.environ.get('RFID_RST_PIN', 25))
     
-    # Keypad configuration would go here
-    # KEYPAD_ROW_PINS = [int(x) for x in os.environ.get('KEYPAD_ROW_PINS', '').split(',') if x]
-    # KEYPAD_COL_PINS = [int(x) for x in os.environ.get('KEYPAD_COL_PINS', '').split(',') if x]
+    # Keypad configuration
+    # These read from environment variables or default to your provided list
+    KEYPAD_ROW_PINS = [int(x) for x in os.environ.get('KEYPAD_ROW_PINS', '5,6,13,19').split(',') if x]
+    KEYPAD_COL_PINS = [int(x) for x in os.environ.get('KEYPAD_COL_PINS', '12,16,20').split(',') if x]

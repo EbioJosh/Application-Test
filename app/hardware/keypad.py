@@ -1,96 +1,87 @@
 """
-Keypad module for the Raspberry Pi hardware appliance.
+Keypad module for Raspberry Pi
 """
 import threading
 import time
 import queue
-
-# Note: These imports will only work on Raspberry Pi
-# import RPi.GPIO as GPIO
+import RPi.GPIO as GPIO
+from config import Config
 
 class Keypad:
-    def __init__(self, socketio):
-        """
-        Initialize the keypad.
-        
-        Args:
-            socketio: Flask-SocketIO instance for emitting events
-        """
-        self.socketio = socketio
-        # In a real implementation, you would initialize the keypad pins here
-        # GPIO.setmode(GPIO.BCM)
+    def __init__(self, coordinator):
+        self.coordinator = coordinator  # Must be AuthCoordinator instance
         self.running = False
         self.thread = None
         self.key_queue = queue.Queue()
-        
+
+        # GPIO pins from config
+        self.rows = Config.KEYPAD_ROW_PINS
+        self.cols = Config.KEYPAD_COL_PINS
+
+        # 4x3 matrix
+        self.key_map = [
+            ["1", "2", "3"],
+            ["4", "5", "6"],
+            ["7", "8", "9"],
+            ["*", "0", "#"]
+        ]
+
+        self._setup_gpio()
+
+    def _setup_gpio(self):
+        if GPIO.getmode() is None:
+            GPIO.setmode(GPIO.BCM)
+        GPIO.setwarnings(False)
+
+        for pin in self.rows:
+            GPIO.setup(pin, GPIO.OUT)
+            GPIO.output(pin, GPIO.LOW)
+
+        for pin in self.cols:
+            GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+
     def start(self):
-        """Start the keypad scanning thread."""
         if not self.running:
             self.running = True
             self.thread = threading.Thread(target=self._scan_keypad_loop, daemon=True)
             self.thread.start()
-            
+
     def stop(self):
-        """Stop the keypad scanning thread."""
         self.running = False
         if self.thread:
             self.thread.join()
-            
-    def _scan_keypad_loop(self):
-        """Background thread function to continuously scan the keypad."""
-        counter = 0
-        while self.running:
-            try:
-                # In a real implementation, you would scan the actual keypad matrix
-                # and detect key presses
-                
-                # Simulate keypad input for development
-                time.sleep(1)  # Scan frequency
-                
-                # For demonstration purposes, simulate key presses
-                # In a real implementation, this would only happen when an actual key is pressed
-                if self.running and not self.key_queue.empty():
-                    key = self.key_queue.get()
-                    self._handle_key_press(key)
-                # Simulate periodic key presses for testing
-                elif self.running:
-                    # Simulate a digit key press every 5 seconds
-                    counter = (counter + 1) % 15
-                    if counter == 0:
-                        self._handle_key_press('1')
-                    elif counter == 5:
-                        self._handle_key_press('2')
-                    elif counter == 10:
-                        self._handle_key_press('#')  # Enter key
-                    
-            except Exception as e:
-                print(f"Error scanning keypad: {e}")
-                
-    def _handle_key_press(self, key):
-        """Handle when a key is pressed."""
-        print(f"Key pressed: {key}")
-        
-        # Emit event to frontend via WebSocket
-        self.socketio.emit('key_pressed', {'key': key})
-        
-    def simulate_key_press(self, key):
-        """Simulate a key press (for testing)."""
-        self.key_queue.put(key)
+        GPIO.cleanup()
 
-# Example usage:
-# if __name__ == "__main__":
-#     # This is just for testing the module independently
-#     import eventlet
-#     from flask import Flask
-#     from flask_socketio import SocketIO
-#     
-#     app = Flask(__name__)
-#     socketio = SocketIO(app, cors_allowed_origins="*")
-#     
-#     keypad = Keypad(socketio)
-#     keypad.start()
-#     
-#     try:
-#         socketio.run(app, host='0.0.0.0', port=5000, debug=False, use_reloader=False)
-#     except KeyboardInterrupt:
-#         keypad.stop()
+    def _scan_keypad_loop(self):
+        last_key = None
+        debounce_time = 0.2
+
+        while self.running:
+            key_pressed = None
+            for row_idx, row_pin in enumerate(self.rows):
+                GPIO.output(row_pin, GPIO.HIGH)
+                for col_idx, col_pin in enumerate(self.cols):
+                    if GPIO.input(col_pin) == GPIO.HIGH:
+                        key_pressed = self.key_map[row_idx][col_idx]
+                GPIO.output(row_pin, GPIO.LOW)
+
+            if key_pressed and key_pressed != last_key:
+                self._handle_key_press(key_pressed)
+                last_key = key_pressed
+                time.sleep(debounce_time)
+            elif not key_pressed:
+                last_key = None
+
+            # Simulated key presses
+            if not self.key_queue.empty():
+                sim_key = self.key_queue.get()
+                self._handle_key_press(sim_key)
+
+            time.sleep(0.05)
+
+    def _handle_key_press(self, key):
+        print(f"[KEYPAD] Key pressed: {key}")
+        self.coordinator.handle_key_press(key)
+
+    def simulate_key_press(self, key):
+        self.key_queue.put(key)
