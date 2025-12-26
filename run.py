@@ -10,24 +10,24 @@ from app.hardware.keypad import Keypad
 from app.hardware.coordinator import get_coordinator
 from app.models.database import db
 
+
 def main():
     print("Starting Raspberry Pi Banking Appliance")
 
     # Create Flask app + SocketIO
     app, socketio = create_app()
 
-    # Initialize DB
+    # Initialize database
     db.init_db()
     db.add_user("769714493968", "1234")
 
-    # Coordinator controls authentication & emits events
+    # Create coordinator (ONLY place SocketIO is used)
     coordinator = get_coordinator(socketio)
 
-    # Initialize hardware with the coordinator
-    rfid_reader = RFIDReader(socketio)  # Must pass coordinator so it can call handle_rfid_detected
-    keypad = Keypad(coordinator)           # Coordinator handles key presses & emits to frontend
+    # Initialize hardware
+    rfid_reader = RFIDReader(coordinator)
+    keypad = Keypad(coordinator)
 
-    # Coordinator knows about hardware
     coordinator.set_hardware_components(rfid_reader, keypad)
 
     # Start hardware threads
@@ -45,7 +45,14 @@ def main():
     signal.signal(signal.SIGTERM, shutdown)
 
     print("System running on port 5000")
-    socketio.run(app, host='0.0.0.0', port=5000, debug=False, use_reloader=False)
+    socketio.run(
+        app,
+        host="0.0.0.0",
+        port=5000,
+        debug=False,
+        use_reloader=False
+    )
+
 
 if __name__ == "__main__":
     main()
