@@ -46,6 +46,28 @@ class Printer:
         except Exception as e:
             print(f"Error printing receipt: {e}")
 
+    def print_transaction_receipt(self, account_id, title, amount, balance):
+        """
+        Print a transaction receipt (balance inquiry or withdrawal).
+
+        Args:
+            account_id (str): Account identifier or card UID
+            title (str): Title for the receipt (e.g., 'Withdrawal')
+            amount (float): Transaction amount (0 for balance inquiry)
+            balance (float): Account balance after transaction
+        """
+        try:
+            print("=" * 30)
+            print(title)
+            print("=" * 30)
+            print(f"Account: {account_id}")
+            print(f"Amount: ${amount:.2f}")
+            print(f"Balance: ${balance:.2f}")
+            print(f"Time: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+            print("=" * 30)
+        except Exception as e:
+            print(f"Error printing transaction receipt: {e}")
+
 # Example usage:
 # if __name__ == "__main__":
 #     printer = Printer()
