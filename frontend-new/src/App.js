@@ -8,13 +8,11 @@ function App() {
   const [currentView, setCurrentView] = useState('welcome');
   const [rfidUid, setRfidUid] = useState('');
   const [pinLength, setPinLength] = useState(0);
-  const [pinBuffer, setPinBuffer] = useState(''); // Added to store actual keys from backend
+  const [pinBuffer, setPinBuffer] = useState('');
   const [accountInfo, setAccountInfo] = useState(null);
-  const [currentTransaction, setCurrentTransaction] = useState(null);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [receiptData, setReceiptData] = useState(null);
   const [messages, setMessages] = useState([]);
-
 
   useEffect(() => {
     const s = io('http://localhost:5000');
@@ -52,10 +50,10 @@ function App() {
     s.on('auth_result', (data) => {
       if (data.success) {
         setAccountInfo({
-          name: 'John Doe',
-          accountNumber: '**** **** **** 1234',
-          balance: 1250.75,
-          cardUid: '1234'
+          name: data.account.name,
+          accountNumber: data.account.account_number,
+          balance: data.account.balance,
+          cardUid: data.account.rfid_uid
         });
         setCurrentView('actionChoice');
         addMessage('Authentication successful - choose action');
@@ -98,17 +96,17 @@ function App() {
       }
     });
 
+    // Listen for print result from backend
+    s.on('print_result', (data) => {
+      if (data.success) {
+        addMessage('Receipt printed successfully');
+      } else {
+        addMessage(`Print failed: ${data.message}`);
+      }
+    });
+
     return () => s.close();
   }, []);
-  useEffect(() => {
-    if (currentView === 'receipt' && receiptData) {
-      // slight delay to ensure DOM updates
-      const t = setTimeout(() => {
-        printReceipt();
-      }, 300);
-      return () => clearTimeout(t);
-    }
-  }, [currentView, receiptData]);
 
   const addMessage = (msg) => {
     setMessages(prev => [...prev, `${new Date().toLocaleTimeString()} - ${msg}`]);
@@ -119,13 +117,13 @@ function App() {
     setPinLength(0);
     setPinBuffer('');
     setAccountInfo(null);
+    setReceiptData(null);
     setCurrentView('welcome');
     addMessage('Session reset');
   };
 
   const handleChooseBalance = () => {
     if (!accountInfo || !socket) return;
-    // Ask backend for balance; backend will print and respond with 'balance_response'
     socket.emit('balance_request', { account_id: accountInfo.cardUid });
     addMessage('Requested balance from server');
   };
@@ -139,29 +137,23 @@ function App() {
 
     socket.emit('withdraw', { account_id: accountInfo.cardUid, amount: amt });
     addMessage(`Requested withdrawal of $${amt.toFixed(2)}`);
+    setWithdrawAmount(''); 
   };
 
   const printReceipt = () => {
-    // Trigger browser print for the receipt element
-    // A simple approach: open a new window with receipt HTML for printing
-    const receiptEl = document.getElementById('receipt');
-    if (!receiptEl) {
-      window.print();
+    if (!socket || !receiptData || !rfidUid) {
+      addMessage('Cannot print: No connection or receipt data');
       return;
     }
-    const newWindow = window.open('', '_blank', 'width=600,height=600');
-    if (!newWindow) {
-      window.print();
-      return;
-    }
-    newWindow.document.write('<html><head><title>Receipt</title></head><body>');
-    newWindow.document.write(receiptEl.innerHTML);
-    newWindow.document.write('</body></html>');
-    newWindow.document.close();
-    newWindow.focus();
-    newWindow.print();
-    newWindow.close();
-    addMessage('Receipt printed');
+
+    socket.emit('print_receipt', {
+      rfid_uid: rfidUid,
+      title: receiptData.title,
+      amount: receiptData.amount,
+      remaining_balance: receiptData.balance
+    });
+    
+    addMessage('Sending receipt to printer...');
   };
 
   return (
@@ -184,14 +176,12 @@ function App() {
             <h2>Enter PIN</h2>
             <p>Card: {rfidUid.substring(0, 4)} **** **** ****</p>
 
-            {/* PIN Display: Dots */}
             <div className="pin-display">
               <div className="pin-dots" style={{ fontSize: '2rem', letterSpacing: '10px' }}>
                 {'•'.repeat(pinLength)}
               </div>
             </div>
 
-            {/* Actual keys pressed (for testing/debug) */}
             <div className="pin-keys-display" style={{ marginTop: '20px', color: '#888' }}>
               {pinBuffer || 'No keys pressed yet'}
             </div>
@@ -199,16 +189,6 @@ function App() {
             <p style={{ fontSize: '0.9rem', marginTop: '10px', color: '#555' }}>
               Use physical keypad
             </p>
-          </div>
-        )}
-
-        {currentView === 'account' && accountInfo && (
-          <div>
-            <h2>Account</h2>
-            <p>{accountInfo.name}</p>
-            <p>{accountInfo.accountNumber}</p>
-            <p>Balance: ${accountInfo.balance.toFixed(2)}</p>
-            <button onClick={resetSession}>Logout</button>
           </div>
         )}
 
@@ -228,8 +208,16 @@ function App() {
           <div className="screen withdraw-screen">
             <h2>Withdraw</h2>
             <p>Account: {accountInfo.accountNumber}</p>
+            <p>Available Balance: ${accountInfo.balance?.toFixed(2)}</p>
             <div style={{ marginTop: '10px' }}>
-              <input type="number" placeholder="Amount" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} />
+              <input 
+                type="number" 
+                placeholder="Amount" 
+                value={withdrawAmount} 
+                onChange={(e) => setWithdrawAmount(e.target.value)}
+                min="0"
+                step="0.01"
+              />
               <button onClick={() => submitWithdraw()} style={{ marginLeft: '8px' }}>Submit</button>
               <button onClick={() => setCurrentView('actionChoice')} style={{ marginLeft: '8px' }}>Back</button>
             </div>
@@ -237,12 +225,12 @@ function App() {
         )}
 
         {currentView === 'receipt' && receiptData && (
-          <div className="screen receipt-screen" id="receipt">
+          <div className="screen receipt-screen">
             <h2>Receipt</h2>
             <div style={{ textAlign: 'left', display: 'inline-block', border: '1px solid #ccc', padding: '12px' }}>
               <div><strong>{receiptData.title}</strong></div>
               <div>{receiptData.date}</div>
-              <div>Account: {accountInfo.accountNumber}</div>
+              <div>Account: {accountInfo?.accountNumber || 'N/A'}</div>
               <div>Amount: ${receiptData.amount.toFixed(2)}</div>
               <div>Balance: ${receiptData.balance.toFixed(2)}</div>
               <div style={{ marginTop: '8px' }}>Thank you for using Secure Banking Terminal.</div>

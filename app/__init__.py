@@ -10,6 +10,8 @@ from flask import request
 from flask_socketio import emit
 from app.hardware.coordinator import get_coordinator
 
+from app.models.database import db
+
 # Add project root to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -39,79 +41,67 @@ def create_app():
     # Handle balance inquiries from the frontend
     @socketio.on('balance_request')
     def handle_balance_request(data):
-        # expected payload: { 'account_id': '1234' }
-        account_id = data.get('account_id') if data else None
-        coordinator = get_coordinator(socketio)
+        rfid_uid = data.get('account_id')
+        account = db.get_account(rfid_uid)
 
-        # Simulated accounts (mirror of api routes)
-        accounts = {
-            '1234': {
-                'name': 'John Doe',
-                'accountNumber': '**** **** **** 1234',
-                'balance': 1250.75,
-                'cardUid': '1234'
-            }
-        }
-
-        if not account_id or account_id not in accounts:
+        if not account:
             emit('balance_response', {'error': 'Account not found'}, room=request.sid)
             return
 
-        balance = accounts[account_id]['balance']
-        # Print receipt for balance inquiry via hardware printer
-        try:
-            coordinator.printer.print_transaction_receipt(account_id, 'Balance Inquiry', 0.0, balance)
-        except Exception:
-            pass
-
-        emit('balance_response', {'account_id': account_id, 'balance': balance}, room=request.sid)
+        emit('balance_response', {
+            'balance': account['balance']
+        }, room=request.sid)
 
     # Handle withdrawal requests from the frontend
     @socketio.on('withdraw')
     def handle_withdraw(data):
-        # expected payload: { 'account_id': '1234', 'amount': 20.0 }
-        account_id = data.get('account_id') if data else None
-        amount = float(data.get('amount') or 0)
-        coordinator = get_coordinator(socketio)
+        rfid_uid = data.get('account_id')
+        amount = float(data.get('amount', 0))
 
-        # Simulated accounts (no persistence)
-        accounts = {
-            '1234': {
-                'name': 'John Doe',
-                'accountNumber': '**** **** **** 1234',
-                'balance': 1250.75,
-                'cardUid': '1234'
-            }
-        }
+        account = db.get_account(rfid_uid)
 
-        if not account_id or account_id not in accounts:
+        if not account:
             emit('transaction_result', {'success': False, 'message': 'Account not found'}, room=request.sid)
             return
 
-        if amount <= 0:
-            emit('transaction_result', {'success': False, 'message': 'Invalid amount'}, room=request.sid)
+        if amount <= 0 or account['balance'] < amount:
+            emit('transaction_result', {'success': False, 'message': 'Insufficient funds'}, room=request.sid)
             return
 
-        acct = accounts[account_id]
-        new_balance = acct['balance'] - amount
-        success = new_balance >= 0
-        message = 'Transaction successful' if success else 'Insufficient funds'
-
-        # Print transaction receipt
-        try:
-            coordinator.printer.print_transaction_receipt(account_id, 'Withdrawal', amount, new_balance if success else acct['balance'])
-        except Exception:
-            pass
+        new_balance = account['balance'] - amount
+        db.update_balance(rfid_uid, new_balance)
 
         emit('transaction_result', {
-            'success': success,
-            'account_id': account_id,
+            'success': True,
             'amount': amount,
-            'balance': new_balance if success else acct['balance'],
-            'message': message
+            'balance': new_balance,
+            'message': 'Transaction successful'
         }, room=request.sid)
 
+    # Handle print receipt requests from the frontend
+    @socketio.on('print_receipt')
+    def handle_print_receipt(data):
+        try:
+            coordinator = get_coordinator(socketio)
+            rfid_uid = data.get('rfid_uid')
+            title = data.get('title', 'Transaction')
+            amount = float(data.get('amount', 0))
+            remaining_balance = float(data.get('remaining_balance', 0))
+            
+            # Use the printer module to print the receipt
+            success = coordinator.printer.print_transaction_receipt(
+                rfid_uid=rfid_uid,
+                title=title,
+                amount=amount,
+                remaining_balance=remaining_balance
+            )
+            
+            emit('print_result', {'success': success, 'message': 'Receipt printed'}, room=request.sid)
+        except Exception as e:
+            emit('print_result', {'success': False, 'message': str(e)}, room=request.sid)
+
     return app, socketio
+    
 
 # =========================================================
 # Application startup

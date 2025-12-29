@@ -18,8 +18,13 @@ def main():
     app, socketio = create_app()
 
     # Initialize database
-    db.init_db()
     db.add_user("769714493968", "1234")
+    db.create_account(
+        rfid_uid="769714493968",
+        name="John Doe",
+        account_number="**** **** **** 3968",
+        balance=1250.75
+    )
 
     # Create coordinator (ONLY place SocketIO is used)
     coordinator = get_coordinator(socketio)

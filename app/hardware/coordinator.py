@@ -66,16 +66,21 @@ class AuthCoordinator:
         self.pin_buffer = ""
 
         success = db.authenticate_user(rfid_uid, pin)
-        message = "Access granted" if success else "Invalid PIN"
+
+        if success:
+            account = db.get_account(rfid_uid)
+            message = "Access granted"
+        else:
+            account = None
+            message = "Invalid PIN"
 
         db.log_event(rfid_uid, success, message)
-        self.printer.print_receipt(rfid_uid, success, message)
 
         self.socketio.emit(
             "auth_result",
             {
-                "rfid_uid": rfid_uid,
                 "success": success,
+                "account": account,
                 "message": message
             }
         )
