@@ -196,7 +196,7 @@ function App() {
           <div className="screen action-screen">
             <h2>Welcome, {accountInfo.name}</h2>
             <p>Choose an action:</p>
-            <div style={{ marginTop: '12px' }}>
+            <div className = "button-row">
               <button onClick={() => handleChooseBalance()}>Check Balance</button>
               <button onClick={() => setCurrentView('withdraw')} style={{ marginLeft: '12px' }}>Withdraw</button>
               <button onClick={resetSession} style={{ marginLeft: '12px' }}>Cancel</button>
@@ -244,7 +244,7 @@ function App() {
         )}
       </main>
 
-      <footer style={{ marginTop: '40px', borderTop: '1px solid #ccc', paddingTop: '10px' }}>
+      <footer style={{ marginTop: '10px', borderTop: '1px solid #ccc', paddingTop: '10px' }}>
         <h4>System Messages</h4>
         <div style={{ height: '150px', overflowY: 'auto', textAlign: 'left', padding: '0 20px' }}>
           {messages.map((m, i) => (
