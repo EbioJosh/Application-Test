@@ -1,172 +1,39 @@
-/* ================= GLOBAL ================= */
-html, body {
-  margin: 0;
-  padding: 0;
-}
-
-.App {
-  text-align: center;
-  min-height: 100vh;
+.atm-container {
+  background: #1a1a1a;
+  color: #00ff41; /* Matrix/ATM Green */
+  font-family: 'Courier New', monospace;
+  height: 100vh;
   display: flex;
-  flex-direction: column;
-  background-color: #f0f0f0;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-
-  /* 🚨 BASE SCALE x3 */
-  font-size: 50px;
+  justify-content: center;
+  align-items: center;
 }
 
-/* ================= HEADER ================= */
-.App-header {
-  background-color: #282c34;
-  padding: 5px;
-  color: white;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5px;
-}
-
-.App-header h1 {
-  font-size: 3rem;
-}
-
-.App-header p {
-  font-size: 2rem;
-  margin-bottom: 15px;
-  margin-top: 0px;
-}
-
-/* ================= MAIN ================= */
-main {
-  flex: 1;
-  padding-bottom: 300px; /* SPACE FOR HUGE SYSTEM MESSAGES */
-}
-
-/* ================= SCREEN ================= */
 .screen {
-  background-color: white;
-  border-radius: 30px;
-  box-shadow: 0 12px 30px rgba(0,0,0,0.3);
-  padding: 30px;
-  width: 96%;
-  margin: 40px auto;
+  width: 80%;
+  border: 4px solid #333;
+  padding: 40px;
+  background: #000;
+  text-align: center;
 }
 
-.screen h2 {
-  font-size: 3.2rem;
-  margin-bottom: 40px;
+.balance-amt {
+  font-size: 3rem;
+  margin: 20px 0;
 }
 
-.screen p {
-  font-size: 2.2rem;
-}
-
-/* ================= PIN SCREEN ================= */
-.pin-dots {
-  font-size: 6.5rem;
-  letter-spacing: 40px;
-  margin: 50px 0;
-}
-
-.pin-keys-display {
-  font-family: monospace;
-  font-size: 2.6rem;
-  color: #4caf50;
-  margin-top: 30px;
-  letter-spacing: 10px;
-  min-height: 80px;
-}
-
-/* ================= BUTTON ROW ================= */
-.button-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 20px; /* space between buttons */
-  margin: 30px 0;
-}
-
-/* ================= BUTTONS ================= */
 button {
-  background-color: #282c34;
+  background: #333;
   color: white;
-  padding: 60px;
   border: none;
-  border-radius: 24px;
+  padding: 15px 25px;
+  margin: 10px;
   cursor: pointer;
-  font-size: 2.6rem;
-  flex: 1; /* buttons take equal width */
-  margin: 0; /* remove vertical margin since gap handles spacing */
+  font-size: 1.2rem;
 }
 
-button:hover:not(:disabled) {
-  background-color: #1a1c20;
+button:hover {
+  background: #555;
 }
 
-button:disabled {
-  opacity: 0.6;
-}
-
-/* ================= INPUT ================= */
-input {
-  padding: 50px;
-  font-size: 2.6rem;
-  border-radius: 24px;
-  border: 4px solid #ccc;
-  width: 100%;
-}
-
-/* ================= RECEIPT ================= */
-.receipt-screen {
-  font-size: 2.4rem;
-}
-
-.receipt-screen h2 {
-  font-size: 3.5rem;
-}
-
-.receipt-screen div {
-  line-height: 2.4;
-}
-
-/* ================= SYSTEM MESSAGES (BOTTOM LOCKED) ================= */
-footer { 
-  height: 200px;
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  background-color: #000;
-  color: #0f0;
-  padding: 10px;
-  z-index: 9999;
-}
-
-footer h4 {
-  font-size: 2.4rem;
-  margin-top: 20px;
-  margin-bottom: 5px;
-}
-
-footer > div {
-  height: 100px;
-  overflow-y: auto;
-  text-align: left;
-  font-size: 2rem;
-  padding: 0 10px;
-}
-
-footer div div {
-  margin-bottom: 14px;
-}
-
-/* ================= SCROLLBAR ================= */
-footer div::-webkit-scrollbar {
-  width: 14px;
-}
-
-footer div::-webkit-scrollbar-thumb {
-  background: #0f0;
-  border-radius: 20px;
-}
-
-
+.error { color: #ff4444; }
+.success-text { color: #00ff41; }

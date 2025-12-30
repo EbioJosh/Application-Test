@@ -7,15 +7,17 @@ class Database:
         self.init_db()
 
     def get_connection(self):
+        """Creates a connection to the SQLite database with row factory enabled."""
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         return conn
 
     def init_db(self):
+        """Initializes the database schema if it doesn't exist."""
         conn = self.get_connection()
         cursor = conn.cursor()
 
-        # Users (auth)
+        # Users Table (Authentication)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -25,7 +27,7 @@ class Database:
             )
         """)
 
-        # Accounts (ATM data)
+        # Accounts Table (ATM Data)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS accounts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -36,7 +38,19 @@ class Database:
             )
         """)
 
-        # Logs
+        # Transaction History Table (For printable receipts and history)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS transactions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                rfid_uid TEXT,
+                type TEXT, -- 'WITHDRAWAL' or 'BALANCE_INQUIRY'
+                amount REAL,
+                balance_after REAL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # General Logs Table (For security auditing)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -50,8 +64,10 @@ class Database:
         conn.commit()
         conn.close()
 
-    # ---------------- AUTH ----------------
+    # ---------------- AUTH METHODS ----------------
+
     def add_user(self, rfid_uid, pin):
+        """Hashes the pin and inserts the user into the database."""
         pin_hash = hashlib.sha256(pin.encode()).hexdigest()
         conn = self.get_connection()
         cursor = conn.cursor()
@@ -63,6 +79,7 @@ class Database:
         conn.close()
 
     def authenticate_user(self, rfid_uid, pin):
+        """Verifies if the provided PIN matches the hash in the database."""
         pin_hash = hashlib.sha256(pin.encode()).hexdigest()
         conn = self.get_connection()
         cursor = conn.cursor()
@@ -74,8 +91,10 @@ class Database:
         conn.close()
         return result is not None
 
-    # ---------------- ACCOUNT ----------------
+    # ---------------- ACCOUNT METHODS ----------------
+
     def create_account(self, rfid_uid, name, account_number, balance):
+        """Registers a new account tied to an RFID UID."""
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute("""
@@ -86,6 +105,7 @@ class Database:
         conn.close()
 
     def get_account(self, rfid_uid):
+        """Retrieves account details for a specific card."""
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute(
@@ -96,17 +116,32 @@ class Database:
         conn.close()
         return dict(account) if account else None
 
-    def update_balance(self, rfid_uid, new_balance):
+    # ---------------- TRANSACTION METHODS ----------------
+
+    def record_transaction(self, rfid_uid, tx_type, amount, balance_after):
+        """Updates the account balance and logs the transaction record."""
         conn = self.get_connection()
         cursor = conn.cursor()
-        cursor.execute(
-            "UPDATE accounts SET balance=? WHERE rfid_uid=?",
-            (new_balance, rfid_uid)
-        )
-        conn.commit()
-        conn.close()
+        try:
+            # Update balance in accounts table
+            cursor.execute(
+                "UPDATE accounts SET balance=? WHERE rfid_uid=?",
+                (balance_after, rfid_uid)
+            )
+            # Log specific transaction entry
+            cursor.execute("""
+                INSERT INTO transactions (rfid_uid, type, amount, balance_after)
+                VALUES (?, ?, ?, ?)
+            """, (rfid_uid, tx_type, amount, balance_after))
+            conn.commit()
+        except sqlite3.Error as e:
+            print(f"Database error: {e}")
+            conn.rollback()
+        finally:
+            conn.close()
 
     def log_event(self, rfid_uid, success, message):
+        """Logs general access attempts (Success/Failure)."""
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute(
@@ -116,5 +151,5 @@ class Database:
         conn.commit()
         conn.close()
 
-
+# Initialize singleton instance
 db = Database()

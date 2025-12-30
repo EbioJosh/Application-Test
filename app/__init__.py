@@ -17,6 +17,89 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 def create_app():
     app = Flask(__name__, static_folder='static', static_url_path='/static')
+    app.config['SECRET_KEY'] = 'atm-secret'
+    socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
+
+    from app.hardware.coordinator import get_coordinator
+    from app.models.database import db
+
+    @socketio.on('set_state')
+    def handle_state_change(data):
+        coord = get_coordinator(socketio)
+        coord.set_state(data.get('state'))
+        coord.reset_timer()
+
+    @socketio.on('balance_request')
+    def handle_balance_request(data):
+        coord = get_coordinator(socketio)
+        coord.reset_timer()
+        rfid_uid = data.get('rfid_uid')
+        account = db.get_account(rfid_uid)
+
+        if account:
+            db.record_transaction(rfid_uid, "BALANCE_INQUIRY", 0, account['balance'])
+            emit('balance_response', {
+                'name': account['name'],
+                'account_number': account['account_number'],
+                'balance': account['balance']
+            })
+
+    @socketio.on('withdraw')
+    def handle_withdraw(data):
+        coord = get_coordinator(socketio)
+        coord.reset_timer()
+        
+        rfid_uid = data.get('rfid_uid')
+        try:
+            amount = float(data.get('amount', 0))
+        except:
+            emit('transaction_result', {'success': False, 'message': 'Invalid amount'})
+            return
+
+        # 1. Rule: Multiple of 500
+        if amount <= 0 or amount % 500 != 0:
+            emit('transaction_result', {'success': False, 'message': 'Please enter a multiple of ₱500'})
+            return
+
+        account = db.get_account(rfid_uid)
+        if not account:
+            emit('transaction_result', {'success': False, 'message': 'Account error'})
+            return
+
+        # 2. Rule: Enough balance
+        if account['balance'] < amount:
+            emit('transaction_result', {'success': False, 'message': 'Insufficient funds'})
+            return
+
+        # Success path
+        new_balance = account['balance'] - amount
+        db.record_transaction(rfid_uid, "WITHDRAWAL", amount, new_balance)
+
+        emit('transaction_result', {
+            'success': True,
+            'amount': amount,
+            'remaining_balance': new_balance,
+            'message': 'Withdrawal successful. Please take your cash.'
+        })
+
+    @socketio.on('print_receipt')
+    def handle_print(data):
+        coord = get_coordinator(socketio)
+        coord.printer.print_transaction_receipt(
+            rfid_uid=data.get('rfid_uid'),
+            title=data.get('title', 'ATM TRANSACTION'),
+            amount=float(data.get('amount', 0)),
+            remaining_balance=float(data.get('remaining_balance', 0))
+        )
+        emit('print_result', {'success': True})
+
+    @socketio.on('done')
+    def handle_done():
+        coord = get_coordinator(socketio)
+        coord.reset_session()
+
+    return app, socketio
+    app = Flask(__name__, static_folder='static', static_url_path='/static')
     app.config['SECRET_KEY'] = 'change-this-in-production'
 
     socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
@@ -55,28 +138,33 @@ def create_app():
     # Handle withdrawal requests from the frontend
     @socketio.on('withdraw')
     def handle_withdraw(data):
-        rfid_uid = data.get('account_id')
-        amount = float(data.get('amount', 0))
+        rfid_uid = data['account_id']
+        amount = float(data['amount'])
 
-        account = db.get_account(rfid_uid)
-
-        if not account:
-            emit('transaction_result', {'success': False, 'message': 'Account not found'}, room=request.sid)
+        if amount % 500 != 0:
+            emit('transaction_result', {
+                'success': False,
+                'message': 'Amount must be multiple of ₱500'
+            })
             return
 
-        if amount <= 0 or account['balance'] < amount:
-            emit('transaction_result', {'success': False, 'message': 'Insufficient funds'}, room=request.sid)
+        account = db.get_account(rfid_uid)
+        if account['balance'] < amount:
+            emit('transaction_result', {
+                'success': False,
+                'message': 'Insufficient funds'
+            })
             return
 
         new_balance = account['balance'] - amount
         db.update_balance(rfid_uid, new_balance)
+        db.log_event(rfid_uid, True, f"Withdraw ₱{amount}")
 
         emit('transaction_result', {
             'success': True,
             'amount': amount,
-            'balance': new_balance,
-            'message': 'Transaction successful'
-        }, room=request.sid)
+            'balance': new_balance
+        })
 
     # Handle print receipt requests from the frontend
     @socketio.on('print_receipt')
