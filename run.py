@@ -22,7 +22,7 @@ def main():
     db.create_account(
         rfid_uid="769714493968",
         name="John Doe",
-        account_number="**** **** **** 3968",
+        account_number="1234 7697 1449 3968",
         balance=1250.75
     )
 

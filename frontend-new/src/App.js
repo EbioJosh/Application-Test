@@ -3,7 +3,7 @@ import io from 'socket.io-client';
 import './App.css'; 
 
 // REPLACE with your Raspberry Pi's actual IP address
-const SOCKET_URL = 'http://192.168.107.247:5000'; 
+const SOCKET_URL = 'http://192.168.88.247:5000'; 
 const socket = io(SOCKET_URL);
 
 const ATMApp = () => {
@@ -133,6 +133,15 @@ const ATMApp = () => {
     setError('');
     socket.emit('set_state', { state: 'WITHDRAWING' });
   };
+  
+  const maskAccountNumber = (accNum) => {
+    if (!accNum) return "";
+    // Keeps the last 4 digits, masks everything before it
+    const visibleDigits = 4;
+    const maskedSection = accNum.slice(0, -visibleDigits).replace(/\d/g, "*");
+    const visibleSection = accNum.slice(-visibleDigits);
+    return maskedSection + " " + visibleSection;
+  };
 
   // --- UI Views ---
 
@@ -187,21 +196,16 @@ const ATMApp = () => {
       {/* 4. BALANCE VIEW */}
       {view === 'BALANCE' && (
         <div className="screen">
-          <h2>Account Details</h2>
-          <div className="data-box">
-            <div className="data-row"><span>Account:</span> <strong>{account?.account_number}</strong></div>
-            <div className="data-row"><span>Holder:</span> <strong>{account?.name}</strong></div>
-            <hr />
-            <div className="balance-display">
-              <span className="currency">₱</span>
-              {account?.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-            </div>
+          <h3>Balance Inquiry</h3>
+          <div className="info-box">
+            <p>Name: <strong>{account?.name}</strong></p>
+            <p>Account: <strong>{maskAccountNumber(account?.account_number)}</strong></p>
+            <p className="balance-amt">₱ {account?.balance.toLocaleString()}</p>
           </div>
           <div className="action-row">
             <button className="btn-print" onClick={() => printReceipt('BALANCE')}>Print Receipt</button>
-            <button className="btn-done" onClick={resetSession}>Finish</button>
+            <button className="btn-done" onClick={() => setView('MENU')}>Done</button>
           </div>
-          {message && <div className="toast">{message}</div>}
         </div>
       )}
 
