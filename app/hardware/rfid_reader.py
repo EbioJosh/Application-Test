@@ -11,57 +11,39 @@ class RFIDReader:
         self.coordinator = coordinator
         self.running = False
         self.thread = None
-        self.last_read_uid = None
-        self.last_read_time = 0
+        self.last_uid = None  # Track the card currently/previously in the reader
 
         if GPIO.getmode() != GPIO.BCM:
             GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
-
-        try:
-            self.reader = SimpleMFRC522()
-            print("RFID Reader initialized.")
-        except Exception as e:
-            print(f"[RFID ERROR] Init failed: {e}")
-            self.reader = None
+        self.reader = SimpleMFRC522()
 
     def start(self):
-        if self.reader and not self.running:
+        if not self.running:
             self.running = True
             self.thread = threading.Thread(target=self._read_rfid_loop, daemon=True)
             self.thread.start()
 
-    def stop(self):
-        self.running = False
-        if self.thread:
-            self.thread.join()
-
     def _read_rfid_loop(self):
         while self.running:
             try:
-                # read_no_block returns (uid, text)
                 uid, _ = self.reader.read_no_block()
-
+                
                 if uid:
                     uid = str(uid)
-                    current_time = time.time()
-
-                    # 1. Logic: Only trigger if the system is IDLE
-                    # 2. Logic: Ignore the SAME card for 5 seconds after a session ends
-                    # to give the user time to remove it.
-                    if self.coordinator.state == "IDLE":
-                        if uid != self.last_read_uid or (current_time - self.last_read_time > 5):
-                            print(f"RFID card detected: {uid}")
-                            self.last_read_uid = uid
-                            self.last_read_time = current_time
-                            self.coordinator.handle_rfid_detected(uid)
+                    self.coordinator.socketio.emit("card_status", {"present": True, "uid": uid})
+                    
+                    # Only trigger a new login if system is IDLE and it's NOT the same card just used
+                    if self.coordinator.state == "IDLE" and uid != self.last_uid:
+                        self.last_uid = uid
+                        self.coordinator.handle_rfid_detected(uid)
                 else:
-                    # If no card is present, clear the last_read_uid 
-                    # so the same card can be used again immediately once removed
-                    self.last_read_uid = None
+                    self.coordinator.socketio.emit("card_status", {"present": False})
+                    # If no card is detected, clear the last_uid memory
+                    # This allows the same card to be used again after it was removed
+                    self.last_uid = None
 
-                time.sleep(0.5) # Reduced polling to prevent CPU spikes
-
+                time.sleep(1) # Check every second for better responsiveness
             except Exception as e:
-                print(f"[RFID ERROR] {e}")
+                print(f"RFID Error: {e}")
                 time.sleep(1)

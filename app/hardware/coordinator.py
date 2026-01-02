@@ -99,7 +99,7 @@ class AuthCoordinator:
                 self._handle_withdrawal_keypad(key)
 
     def _handle_pin_keypad(self, key):
-        if key == "6":  # Submit PIN
+        if key == "#":  # Submit PIN
             self._process_pin_entry()
         elif key == "*":  # Backspace
             self.pin_buffer = self.pin_buffer[:-1]
