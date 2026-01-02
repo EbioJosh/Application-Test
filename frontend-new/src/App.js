@@ -3,7 +3,7 @@ import io from 'socket.io-client';
 import './App.css'; 
 
 // REPLACE with your Raspberry Pi's actual IP address
-const SOCKET_URL = 'http://192.168.88.247:5000'; 
+const SOCKET_URL = 'http://192.168.1.44:5000'; 
 const socket = io(SOCKET_URL);
 
 const ATMApp = () => {
