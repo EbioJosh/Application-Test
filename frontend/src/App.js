@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import io from 'socket.io-client';
 import axios from 'axios';
 import './App.css';
+import './kiosk.css';
 
 function App() {
   const [socket, setSocket] = useState(null);
@@ -13,6 +14,11 @@ function App() {
   const [transactionAmount, setTransactionAmount] = useState('');
   const [receiptData, setReceiptData] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [kioskEnabled, setKioskEnabled] = useState(false);
+  const [screensaverActive, setScreensaverActive] = useState(false);
+  const [idleTimeoutSeconds, setIdleTimeoutSeconds] = useState(60); // show screensaver
+  const [sleepTimeoutSeconds, setSleepTimeoutSeconds] = useState(300); // enter system sleep
+  const lastActivityRef = React.useRef(Date.now());
 
   // Initialize SocketIO connection
   useEffect(() => {
@@ -69,6 +75,36 @@ function App() {
     return () => newSocket.close();
   }, []);
 
+  // Activity tracking and screensaver
+  useEffect(() => {
+    const resetActivity = () => {
+      lastActivityRef.current = Date.now();
+      if (screensaverActive) setScreensaverActive(false);
+    };
+
+    const events = ['mousemove', 'mousedown', 'touchstart', 'keydown'];
+    events.forEach(e => window.addEventListener(e, resetActivity));
+
+    const interval = setInterval(() => {
+      const idle = (Date.now() - lastActivityRef.current) / 1000;
+      if (!screensaverActive && idle >= idleTimeoutSeconds) {
+        setScreensaverActive(true);
+        // notify backend (optional)
+        axios.post('/api/screensaver_timeout', { seconds: idleTimeoutSeconds }).catch(()=>{});
+      }
+
+      if (idle >= sleepTimeoutSeconds) {
+        // request system sleep
+        axios.post('/api/sleep', { method: 'systemctl' }).catch(() => {});
+      }
+    }, 1000);
+
+    return () => {
+      clearInterval(interval);
+      events.forEach(e => window.removeEventListener(e, resetActivity));
+    };
+  }, [idleTimeoutSeconds, sleepTimeoutSeconds, screensaverActive]);
+
   const addMessage = (message) => {
     setMessages(prev => [...prev, `${new Date().toLocaleTimeString()}: ${message}`]);
   };
@@ -117,6 +153,30 @@ function App() {
     addMessage('Session reset');
   };
 
+  const enterKiosk = async () => {
+    setKioskEnabled(true);
+    try {
+      if (document.documentElement.requestFullscreen) {
+        await document.documentElement.requestFullscreen();
+      }
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const exitKiosk = async () => {
+    setKioskEnabled(false);
+    try {
+      if (document.exitFullscreen) await document.exitFullscreen();
+    } catch (e) {}
+  };
+
+  useEffect(() => {
+    if (kioskEnabled) document.body.classList.add('kiosk-mode');
+    else document.body.classList.remove('kiosk-mode');
+    return () => document.body.classList.remove('kiosk-mode');
+  }, [kioskEnabled]);
+
   return (
     <div className="App">
       <header className="App-header">
@@ -125,9 +185,26 @@ function App() {
           <span className={`status-dot ${connectionStatus}`}></span>
           <span>System: {connectionStatus}</span>
         </div>
+        <div className="kiosk-controls">
+          {!kioskEnabled ? (
+            <button onClick={enterKiosk}>Enter Kiosk</button>
+          ) : (
+            <button onClick={exitKiosk}>Exit Kiosk</button>
+          )}
+          <label>Idle (s): <input type="number" value={idleTimeoutSeconds} onChange={e => setIdleTimeoutSeconds(Number(e.target.value))} /></label>
+          <label>Sleep after (s): <input type="number" value={sleepTimeoutSeconds} onChange={e => setSleepTimeoutSeconds(Number(e.target.value))} /></label>
+        </div>
       </header>
 
       <main className="App-main">
+        {screensaverActive && (
+          <div className="screensaver-overlay" onClick={() => { lastActivityRef.current = Date.now(); setScreensaverActive(false); }}>
+            <div className="screensaver-content">
+              <h2>Welcome</h2>
+              <p>Touch or press any key to continue</p>
+            </div>
+          </div>
+        )}
         {/* Welcome Screen */}
         {currentView === 'welcome' && (
           <div className="screen welcome-screen">

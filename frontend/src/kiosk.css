@@ -1,0 +1,23 @@
+/* Kiosk and screensaver styles */
+.screensaver-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at center, rgba(0,0,0,0.6), rgba(0,0,0,0.9));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  color: #fff;
+}
+
+.screensaver-content {
+  text-align: center;
+}
+
+/* When in kiosk mode hide cursor */
+.kiosk-mode * {
+  cursor: none !important;
+}

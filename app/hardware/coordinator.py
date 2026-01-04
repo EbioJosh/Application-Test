@@ -3,6 +3,8 @@ import time
 from app.models.database import db
 from app.hardware.printer import Printer
 from app.hardware.motor import Motor  # NEW: import motor
+import platform
+import subprocess
 
 
 class AuthCoordinator:
@@ -177,6 +179,21 @@ class AuthCoordinator:
             self.state = new_state
             if new_state == "WITHDRAWING":
                 self.amount_buffer = ""
+
+    def enter_system_sleep(self, method='systemctl', seconds=60):
+        """Attempt to put the host into sleep/suspend. Returns (success, message)."""
+        if platform.system() != 'Linux':
+            return False, 'System sleep supported only on Linux'
+
+        try:
+            if method == 'rtcwake':
+                subprocess.check_call(['rtcwake', '-m', 'mem', '-s', str(int(seconds))])
+            else:
+                subprocess.check_call(['systemctl', 'suspend'])
+        except Exception as e:
+            return False, str(e)
+
+        return True, 'Sleep command invoked'
 
 
 # -----------------------------

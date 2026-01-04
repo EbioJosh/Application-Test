@@ -7,6 +7,8 @@ from flask_socketio import emit
 from app.models.database import db
 from app.hardware.coordinator import get_coordinator
 import os
+import platform
+import subprocess
 
 api_bp = Blueprint('api', __name__)
 
@@ -77,6 +79,64 @@ def test_auth():
     # Get the coordinator (this is a simplified approach for testing)
     # In a real implementation, you'd pass the socketio instance properly
     return jsonify({'message': 'Test endpoint - implementation would trigger auth flow'})
+
+
+@api_bp.route('/api/kiosk', methods=['GET', 'POST'])
+def kiosk_mode():
+    """Get or set kiosk mode state (frontend-only flag)."""
+    if request.method == 'GET':
+        # Simple flag; frontend may also persist locally
+        return jsonify({'kiosk': False})
+
+    data = request.get_json() or {}
+    kiosk = bool(data.get('kiosk', False))
+    # In this implementation we don't store server-side, but acknowledge.
+    return jsonify({'kiosk': kiosk})
+
+
+@api_bp.route('/api/screensaver_timeout', methods=['POST'])
+def set_screensaver_timeout():
+    """Set screensaver timeout (client uses this); we accept and validate."""
+    data = request.get_json() or {}
+    try:
+        seconds = int(data.get('seconds', 0))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'Invalid seconds'}), 400
+
+    if seconds < 0 or seconds > 86400:
+        return jsonify({'error': 'Timeout out of range'}), 400
+
+    # Not persisted in this simple implementation — frontend will honour it.
+    return jsonify({'screensaver_timeout': seconds})
+
+
+@api_bp.route('/api/sleep', methods=['POST'])
+def enter_sleep():
+    """Attempt to put the Raspberry Pi into suspend/sleep mode (Linux only).
+
+    This endpoint executes a safe system call and returns result. It requires
+    the running process to have permission to suspend the system (systemd).
+    """
+    # Only allow on Linux
+    if platform.system() != 'Linux':
+        return jsonify({'error': 'Sleep is only supported on Linux'}), 400
+
+    # Optional force flag
+    data = request.get_json() or {}
+    method = data.get('method', 'systemctl')
+
+    try:
+        if method == 'rtcwake':
+            # Example: rtcwake -m mem -s 60 (suspend to RAM for 60s)
+            seconds = int(data.get('seconds', 60))
+            subprocess.check_call(['rtcwake', '-m', 'mem', '-s', str(seconds)])
+        else:
+            # Use systemd suspend (may require root or system privileges)
+            subprocess.check_call(['systemctl', 'suspend'])
+    except Exception as e:
+        return jsonify({'error': 'Failed to enter sleep', 'details': str(e)}), 500
+
+    return jsonify({'message': 'System sleep invoked'})
 
 @api_bp.route('/api/account/<account_id>')
 def get_account(account_id):
